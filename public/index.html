@@ -3,132 +3,376 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>车辆台账登记</title>
+  <title>车辆成本台账系统</title>
   <style>
-    *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui}
-    body{padding:20px;background:#f5f7fa}
-    .container{max-width:1200px;margin:0 auto}
-    h1{margin-bottom:20px;color:#222;font-size:22px}
-    .form-card{background:#fff;padding:20px;border-radius:10px;box-shadow:0 2px 8px #00000012;margin-bottom:20px}
-    .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:12px}
-    input,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px}
-    button{padding:10px 20px;border:none;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer;font-size:14px}
-    table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px #00000012}
-    th,td{padding:12px;border-bottom:1px solid #eee;text-align:left;font-size:14px}
-    th{background:#f1f5f9}
-    .del-btn{background:#dc2626}
-    .edit-btn{background:#059669;margin-right:6px}
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, sans-serif;
+    }
+    body {
+      background: #f4f7fa;
+      padding: 16px;
+    }
+    .wrap {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    h1 {
+      margin-bottom: 16px;
+      color: #1f2937;
+      font-size: 22px;
+    }
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+    .tab {
+      padding: 8px 16px;
+      border: none;
+      background: #e5e7eb;
+      border-radius: 6px 6px 0 0;
+      cursor: pointer;
+    }
+    .tab.active {
+      background: #2563eb;
+      color: #fff;
+    }
+    .panel {
+      display: none;
+      background: #fff;
+      padding: 16px;
+      border-radius: 0 8px 8px 8px;
+      box-shadow: 0 2px 8px #00000012;
+    }
+    .panel.show {
+      display: block;
+    }
+    .grid-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    input {
+      padding: 8px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    button {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background: #2563eb;
+      color: #fff;
+    }
+    .btn-danger {
+      background: #dc2626;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top:12px;
+    }
+    th, td {
+      border:1px solid #e5e7eb;
+      padding: 8px 6px;
+      font-size:13px;
+    }
+    th {
+      background: #f3f4f6;
+    }
+    textarea {
+      width:100%;
+      padding:8px;
+      border:1px solid #ddd;
+      border-radius:5px;
+    }
   </style>
 </head>
 <body>
-<div class="container">
-  <h1>车辆台账登记</h1>
-  <div class="form-card">
-    <div class="row">
-      <input id="orderNo" placeholder="订单号">
-      <input id="contractNo" placeholder="合同号">
-      <input id="model" placeholder="车型">
-      <input id="vin" placeholder="VIN">
-      <input id="chassis" placeholder="底盘号">
-      <input id="cfr" placeholder="CFR">
-    </div>
-    <div class="row">
-      <textarea id="remark" placeholder="备注"></textarea>
-      <div></div>
-      <div></div>
-      <div></div>
-      <div></div>
-      <button onclick="addData()">新增记录</button>
-    </div>
+<div class="wrap">
+  <h1>车辆成本台账系统</h1>
+  <div class="tabs">
+    <button class="tab active" data-tab="car">车辆台账</button>
+    <button class="tab" data-tab="rate">批次汇率</button>
+    <button class="tab" data-tab="account">记账流水</button>
+    <button class="tab" data-tab="param">参数配置</button>
   </div>
-  <table>
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>订单号</th>
-        <th>合同号</th>
-        <th>车型</th>
-        <th>VIN</th>
-        <th>底盘号</th>
-        <th>CFR</th>
-        <th>备注</th>
-        <th>时间</th>
-        <th>操作</th>
-      </tr>
-    </thead>
-    <tbody id="tableBody"></tbody>
-  </table>
+
+  <!-- 车辆台账 -->
+  <div class="panel show" id="car">
+    <div class="grid-row">
+      <input id="c_orderNo" placeholder="订单号">
+      <input id="c_contractNo" placeholder="合同号">
+      <input id="c_model" placeholder="车型">
+      <input id="c_vin" placeholder="VIN">
+      <input id="c_chassis" placeholder="底盘号">
+      <input id="c_cfr" placeholder="CFR">
+      <input id="c_inDate" placeholder="入库日期">
+      <input id="c_outDate" placeholder="出库日期">
+      <input id="c_stockStatus" placeholder="库存状态">
+      <input id="c_rate" placeholder="汇率">
+      <input id="c_insurance" placeholder="保险">
+      <input id="c_clearFee" placeholder="清关费">
+      <input id="c_customs" placeholder="海关">
+      <input id="c_vat" placeholder="增值税">
+      <input id="c_kdFee" placeholder="KD费用">
+      <input id="c_totalCost" placeholder="总成本">
+      <input id="c_salePrice" placeholder="售价">
+      <input id="c_profit" placeholder="利润">
+      <input id="c_rateRatio" placeholder="汇率差">
+      <input id="c_stockDay" placeholder="库存天数">
+    </div>
+    <button onclick="addCar()">添加台账行</button>
+    <button onclick="saveCarList()">保存台账</button>
+    <button class="btn-danger" onclick="clearCarTemp()">清空临时列表</button>
+    <table>
+      <thead>
+        <tr>
+          <th>订单号</th><th>合同号</th><th>车型</th><th>VIN</th><th>底盘</th><th>CFR</th>
+          <th>入库</th><th>出库</th><th>库存状态</th><th>汇率</th><th>保险</th><th>清关</th>
+          <th>海关</th><th>增值税</th><th>KD费</th><th>总成本</th><th>售价</th><th>利润</th><th>汇率差</th><th>库存天数</th>
+        </tr>
+      </thead>
+      <tbody id="carTbody"></tbody>
+    </table>
+  </div>
+
+  <!-- 批次汇率 -->
+  <div class="panel" id="rate">
+    <div class="grid-row">
+      <input id="r_orderNo" placeholder="订单号">
+      <input id="r_rateVal" placeholder="汇率值">
+    </div>
+    <button onclick="addRate()">添加汇率行</button>
+    <button onclick="saveBatchRate()">保存汇率</button>
+    <button class="btn-danger" onclick="clearRateTemp()">清空临时列表</button>
+    <table>
+      <thead>
+        <tr><th>订单号</th><th>汇率</th></tr>
+      </thead>
+      <tbody id="rateTbody"></tbody>
+    </table>
+  </div>
+
+  <!-- 记账流水 -->
+  <div class="panel" id="account">
+    <div class="grid-row">
+      <input id="a_accDate" placeholder="日期">
+      <input id="a_accType" placeholder="类型">
+      <input id="a_money" placeholder="金额">
+      <input id="a_remark" placeholder="备注">
+    </div>
+    <button onclick="addAccount()">添加流水行</button>
+    <button onclick="saveAccount()">保存流水</button>
+    <button class="btn-danger" onclick="clearAccountTemp()">清空临时列表</button>
+    <table>
+      <thead>
+        <tr><th>日期</th><th>类型</th><th>金额</th><th>备注</th></tr>
+      </thead>
+      <tbody id="accTbody"></tbody>
+    </table>
+  </div>
+
+  <!-- 参数配置 -->
+  <div class="panel" id="param">
+    <div class="grid-row">
+      <input id="p_defRate" placeholder="默认汇率">
+      <input id="p_ngn2cny" placeholder="NGN转CNY">
+      <input id="p_insRate" placeholder="保险费率">
+      <input id="p_clearFee" placeholder="清关费">
+      <input id="p_vatRate" placeholder="增值税率">
+      <input id="p_customsRate" placeholder="关税率">
+      <input id="p_kdFee" placeholder="KD费用">
+      <input id="p_overDay" placeholder="超期天数">
+    </div>
+    <button onclick="saveParam()">保存参数</button>
+  </div>
 </div>
 
 <script>
-const api = "/api";
-let listData = [];
+let carList = [];
+let rateMap = {};
+let accList = [];
+const api = "";
 
-async function loadList(){
-  const res = await fetch(`${api}/list`);
-  listData = await res.json();
-  renderTable();
+// 标签切换
+document.querySelectorAll(".tab").forEach(tab=>{
+  tab.onclick = ()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(x=>x.classList.remove("show"));
+    tab.classList.add("active");
+    document.getElementById(tab.dataset.tab).classList.add("show");
+  }
+})
+
+// 车辆台账
+async function loadCar(){
+  const res = await fetch(`${api}/api/carlist`);
+  carList = await res.json();
+  renderCar();
 }
-
-function renderTable(){
-  const tb = document.getElementById("tableBody");
+function renderCar(){
+  const tb = document.getElementById("carTbody");
   tb.innerHTML = "";
-  listData.forEach(item=>{
-    tb.innerHTML += `
-    <tr>
-      <td>${item.id}</td>
-      <td>${item.orderNo||""}</td>
-      <td>${item.contractNo||""}</td>
-      <td>${item.model||""}</td>
-      <td>${item.vin||""}</td>
-      <td>${item.chassis||""}</td>
-      <td>${item.cfr||""}</td>
-      <td>${item.remark||""}</td>
-      <td>${item.createTime||""}</td>
-      <td>
-        <button class="del-btn" onclick="del(${item.id})">删除</button>
-      </td>
-    </tr>
-    `
+  carList.forEach(i=>{
+    tb.innerHTML += `<tr>
+      <td>${i.orderNo||""}</td><td>${i.contractNo||""}</td><td>${i.model||""}</td><td>${i.vin||""}</td><td>${i.chassis||""}</td><td>${i.cfr||""}</td>
+      <td>${i.inDate||""}</td><td>${i.outDate||""}</td><td>${i.stockStatus||""}</td><td>${i.rate||""}</td><td>${i.insurance||""}</td><td>${i.clearFee||""}</td>
+      <td>${i.customs||""}</td><td>${i.vat||""}</td><td>${i.kdFee||""}</td><td>${i.totalCost||""}</td><td>${i.salePrice||""}</td><td>${i.profit||""}</td><td>${i.rateRatio||""}</td><td>${i.stockDay||""}</td>
+    </tr>`
   })
 }
-
-async function addData(){
-  const data = {
-    orderNo: document.getElementById("orderNo").value.trim(),
-    contractNo: document.getElementById("contractNo").value.trim(),
-    model: document.getElementById("model").value.trim(),
-    vin: document.getElementById("vin").value.trim(),
-    chassis: document.getElementById("chassis").value.trim(),
-    cfr: document.getElementById("cfr").value.trim(),
-    remark: document.getElementById("remark").value.trim()
+function addCar(){
+  const item = {
+    orderNo: document.getElementById("c_orderNo").value.trim(),
+    contractNo: document.getElementById("c_contractNo").value.trim(),
+    model: document.getElementById("c_model").value.trim(),
+    vin: document.getElementById("c_vin").value.trim(),
+    chassis: document.getElementById("c_chassis").value.trim(),
+    cfr: document.getElementById("c_cfr").value.trim(),
+    inDate: document.getElementById("c_inDate").value.trim(),
+    outDate: document.getElementById("c_outDate").value.trim(),
+    stockStatus: document.getElementById("c_stockStatus").value.trim(),
+    rate: document.getElementById("c_rate").value.trim(),
+    insurance: document.getElementById("c_insurance").value.trim(),
+    clearFee: document.getElementById("c_clearFee").value.trim(),
+    customs: document.getElementById("c_customs").value.trim(),
+    vat: document.getElementById("c_vat").value.trim(),
+    kdFee: document.getElementById("c_kdFee").value.trim(),
+    totalCost: document.getElementById("c_totalCost").value.trim(),
+    salePrice: document.getElementById("c_salePrice").value.trim(),
+    profit: document.getElementById("c_profit").value.trim(),
+    rateRatio: document.getElementById("c_rateRatio").value.trim(),
+    stockDay: document.getElementById("c_stockDay").value.trim(),
   }
-  await fetch(`${api}/add`,{
+  carList.push(item);
+  renderCar();
+  clearCarInput();
+}
+async function saveCarList(){
+  await fetch(`${api}/api/carlist/save`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({list:carList})
+  })
+  alert("台账已保存！");
+  loadCar();
+}
+function clearCarTemp(){ carList=[]; renderCar(); }
+function clearCarInput(){
+  ["c_orderNo","c_contractNo","c_model","c_vin","c_chassis","c_cfr","c_inDate","c_outDate","c_stockStatus","c_rate","c_insurance","c_clearFee","c_customs","c_vat","c_kdFee","c_totalCost","c_salePrice","c_profit","c_rateRatio","c_stockDay"]
+  .forEach(id=>document.getElementById(id).value="")
+}
+
+// 批次汇率
+async function loadRate(){
+  const res = await fetch(`${api}/api/batchrate`);
+  rateMap = await res.json();
+  renderRate();
+}
+function renderRate(){
+  const tb = document.getElementById("rateTbody");
+  tb.innerHTML = "";
+  Object.entries(rateMap).forEach(([k,v])=>{
+    tb.innerHTML += `<tr><td>${k}</td><td>${v}</td></tr>`
+  })
+}
+function addRate(){
+  const o = document.getElementById("r_orderNo").value.trim();
+  const v = document.getElementById("r_rateVal").value.trim();
+  if(o) rateMap[o]=v;
+  renderRate();
+  document.getElementById("r_orderNo").value="";
+  document.getElementById("r_rateVal").value="";
+}
+async function saveBatchRate(){
+  await fetch(`${api}/api/batchrate/save`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({map:rateMap})
+  })
+  alert("汇率保存成功");
+  loadRate();
+}
+function clearRateTemp(){ rateMap={}; renderRate(); }
+
+// 记账流水
+async function loadAccount(){
+  const res = await fetch(`${api}/api/account`);
+  accList = await res.json();
+  renderAcc();
+}
+function renderAcc(){
+  const tb = document.getElementById("accTbody");
+  tb.innerHTML = "";
+  accList.forEach(i=>{
+    tb.innerHTML += `<tr><td>${i.accDate||""}</td><td>${i.accType||""}</td><td>${i.money||""}</td><td>${i.remark||""}</td></tr>`
+  })
+}
+function addAccount(){
+  accList.push({
+    accDate: document.getElementById("a_accDate").value.trim(),
+    accType: document.getElementById("a_accType").value.trim(),
+    money: document.getElementById("a_money").value.trim(),
+    remark: document.getElementById("a_remark").value.trim(),
+  })
+  renderAcc();
+  ["a_accDate","a_accType","a_money","a_remark"].forEach(id=>document.getElementById(id).value="")
+}
+async function saveAccount(){
+  await fetch(`${api}/api/account/save`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({list:accList})
+  })
+  alert("流水保存成功");
+  loadAccount();
+}
+function clearAccountTemp(){ accList=[]; renderAcc(); }
+
+// 参数
+async function loadParam(){
+  const res = await fetch(`${api}/api/params`);
+  const d = await res.json();
+  if(!d) return;
+  document.getElementById("p_defRate").value = d.defRate||"";
+  document.getElementById("p_ngn2cny").value = d.ngn2cny||"";
+  document.getElementById("p_insRate").value = d.insRate||"";
+  document.getElementById("p_clearFee").value = d.clearFee||"";
+  document.getElementById("p_vatRate").value = d.vatRate||"";
+  document.getElementById("p_customsRate").value = d.customsRate||"";
+  document.getElementById("p_kdFee").value = d.kdFee||"";
+  document.getElementById("p_overDay").value = d.overDay||"";
+}
+async function saveParam(){
+  const data = {
+    defRate: document.getElementById("p_defRate").value,
+    ngn2cny: document.getElementById("p_ngn2cny").value,
+    insRate: document.getElementById("p_insRate").value,
+    clearFee: document.getElementById("p_clearFee").value,
+    vatRate: document.getElementById("p_vatRate").value,
+    customsRate: document.getElementById("p_customsRate").value,
+    kdFee: document.getElementById("p_kdFee").value,
+    overDay: document.getElementById("p_overDay").value,
+  }
+  await fetch(`${api}/api/params`,{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify(data)
   })
-  clearInput();
-  loadList();
+  alert("参数保存成功");
 }
 
-async function del(id){
-  if(!confirm("确定删除？")) return;
-  await fetch(`${api}/del/${id}`,{method:"DELETE"})
-  loadList();
-}
-
-function clearInput(){
-  document.getElementById("orderNo").value=""
-  document.getElementById("contractNo").value=""
-  document.getElementById("model").value=""
-  document.getElementById("vin").value=""
-  document.getElementById("chassis").value=""
-  document.getElementById("cfr").value=""
-  document.getElementById("remark").value=""
-}
-
-loadList();
+loadCar();
+loadRate();
+loadAccount();
+loadParam();
 </script>
 </body>
 </html>
