@@ -1,100 +1,134 @@
-const express = require('express')
-const sqlite3 = require('sqlite3').verbose()
-const cors = require('cors')
-const path = require('path')
-const app = express()
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>车辆台账登记</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui}
+    body{padding:20px;background:#f5f7fa}
+    .container{max-width:1200px;margin:0 auto}
+    h1{margin-bottom:20px;color:#222;font-size:22px}
+    .form-card{background:#fff;padding:20px;border-radius:10px;box-shadow:0 2px 8px #00000012;margin-bottom:20px}
+    .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:12px}
+    input,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px}
+    button{padding:10px 20px;border:none;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer;font-size:14px}
+    table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px #00000012}
+    th,td{padding:12px;border-bottom:1px solid #eee;text-align:left;font-size:14px}
+    th{background:#f1f5f9}
+    .del-btn{background:#dc2626}
+    .edit-btn{background:#059669;margin-right:6px}
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>车辆台账登记</h1>
+  <div class="form-card">
+    <div class="row">
+      <input id="orderNo" placeholder="订单号">
+      <input id="contractNo" placeholder="合同号">
+      <input id="model" placeholder="车型">
+      <input id="vin" placeholder="VIN">
+      <input id="chassis" placeholder="底盘号">
+      <input id="cfr" placeholder="CFR">
+    </div>
+    <div class="row">
+      <textarea id="remark" placeholder="备注"></textarea>
+      <div></div>
+      <div></div>
+      <div></div>
+      <div></div>
+      <button onclick="addData()">新增记录</button>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>订单号</th>
+        <th>合同号</th>
+        <th>车型</th>
+        <th>VIN</th>
+        <th>底盘号</th>
+        <th>CFR</th>
+        <th>备注</th>
+        <th>时间</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
 
-app.use(cors())
-app.use(express.json())
-app.use(express.static(path.join(__dirname, 'public')))
+<script>
+const api = "/api";
+let listData = [];
 
-const db = new sqlite3.Database('./carbook.db')
-db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS carlist (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    orderNo TEXT,contractNo TEXT,model TEXT,vin TEXT,chassis TEXT,cfr TEXT,
-    inDate TEXT,outDate TEXT,stockStatus TEXT,rate TEXT,insurance REAL,
-    clearFee REAL,customs REAL,vat REAL,kdFee REAL,totalCost REAL,salePrice TEXT,
-    profit REAL,rateRatio REAL,stockDay INTEGER
-  )`)
-  db.run(`CREATE TABLE IF NOT EXISTS batchrate (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    orderNo TEXT UNIQUE, rateVal REAL
-  )`)
-  db.run(`CREATE TABLE IF NOT EXISTS account (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    accDate TEXT,accType TEXT,money REAL,remark TEXT
-  )`)
-  db.run(`CREATE TABLE IF NOT EXISTS params (
-    id INTEGER PRIMARY KEY,
-    defRate REAL,ngn2cny REAL,insRate REAL,clearFee REAL,
-    vatRate REAL,customsRate REAL,kdFee REAL,overDay INTEGER
-  )`)
-})
+async function loadList(){
+  const res = await fetch(`${api}/list`);
+  listData = await res.json();
+  renderTable();
+}
 
-//参数
-app.get('/api/params', (req, res) => {
-  db.get(`SELECT * FROM params WHERE id=1`, (err, row) => res.json(row || {}))
-})
-app.post('/api/params', (req, res) => {
-  const d = req.body
-  db.run(`REPLACE INTO params(id,defRate,ngn2cny,insRate,clearFee,vatRate,customsRate,kdFee,overDay)
-VALUES(1,?,?,?,?,?,?,?,?)`,
-    [d.defRate, d.ngn2cny, d.insRate, d.clearFee, d.vatRate, d.customsRate, d.kdFee, d.overDay],
-    err => res.json({ ok: !err }))
-})
-
-//车辆台账
-app.get('/api/carlist', (req, res) => {
-  db.all(`SELECT * FROM carlist`, (e, r) => res.json(r))
-})
-app.post('/api/carlist/save', (req, res) => {
-  const list = req.body.list
-  db.run(`DELETE FROM carlist`, err => {
-    const stmt = db.prepare(`INSERT INTO carlist(
-orderNo,contractNo,model,vin,chassis,cfr,inDate,outDate,stockStatus,
-rate,insurance,clearFee,customs,vat,kdFee,totalCost,salePrice,profit,rateRatio,stockDay
-) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    list.forEach(i => stmt.run(
-      i.orderNo, i.contractNo, i.model, i.vin, i.chassis, i.cfr,
-      i.inDate, i.outDate, i.stockStatus, i.rate, i.insurance,
-      i.clearFee, i.customs, i.vat, i.kdFee, i.totalCost,
-      i.salePrice, i.profit, i.rateRatio, i.stockDay
-    ))
-    stmt.finalize(e => res.json({ ok: !e }))
+function renderTable(){
+  const tb = document.getElementById("tableBody");
+  tb.innerHTML = "";
+  listData.forEach(item=>{
+    tb.innerHTML += `
+    <tr>
+      <td>${item.id}</td>
+      <td>${item.orderNo||""}</td>
+      <td>${item.contractNo||""}</td>
+      <td>${item.model||""}</td>
+      <td>${item.vin||""}</td>
+      <td>${item.chassis||""}</td>
+      <td>${item.cfr||""}</td>
+      <td>${item.remark||""}</td>
+      <td>${item.createTime||""}</td>
+      <td>
+        <button class="del-btn" onclick="del(${item.id})">删除</button>
+      </td>
+    </tr>
+    `
   })
-})
+}
 
-//批次汇率
-app.get('/api/batchrate', (req, res) => {
-  db.all(`SELECT orderNo,rateVal FROM batchrate`, (e, rows) => {
-    const map = {}
-    rows.forEach(r => map[r.orderNo] = r.rateVal)
-    res.json(map)
+async function addData(){
+  const data = {
+    orderNo: document.getElementById("orderNo").value.trim(),
+    contractNo: document.getElementById("contractNo").value.trim(),
+    model: document.getElementById("model").value.trim(),
+    vin: document.getElementById("vin").value.trim(),
+    chassis: document.getElementById("chassis").value.trim(),
+    cfr: document.getElementById("cfr").value.trim(),
+    remark: document.getElementById("remark").value.trim()
+  }
+  await fetch(`${api}/add`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(data)
   })
-})
-app.post('/api/batchrate/save', (req, res) => {
-  const map = req.body.map
-  db.run(`DELETE FROM batchrate`, err => {
-    const st = db.prepare(`INSERT OR REPLACE INTO batchrate(orderNo,rateVal) VALUES(?,?)`)
-    Object.entries(map).forEach(([k, v]) => st.run(k, v))
-    st.finalize(e => res.json({ ok: !e }))
-  })
-})
+  clearInput();
+  loadList();
+}
 
-//记账流水
-app.get('/api/account', (req, res) => {
-  db.all(`SELECT * FROM account ORDER BY accDate DESC`, (e, rows) => res.json(rows))
-})
-app.post('/api/account/save', (req, res) => {
-  const arr = req.body.list
-  db.run(`DELETE FROM account`, err => {
-    const st = db.prepare(`INSERT INTO account(accDate,accType,money,remark) VALUES(?,?,?,?)`)
-    arr.forEach(i => st.run(i.date || i.accDate, i.type || i.accType, i.money, i.remark))
-    st.finalize(e => res.json({ ok: !e }))
-  })
-})
+async function del(id){
+  if(!confirm("确定删除？")) return;
+  await fetch(`${api}/del/${id}`,{method:"DELETE"})
+  loadList();
+}
 
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/index.html')))
-const PORT = process.env.PORT || 3000
-app.listen(PORT, () => console.log(`server run ${PORT}`))
+function clearInput(){
+  document.getElementById("orderNo").value=""
+  document.getElementById("contractNo").value=""
+  document.getElementById("model").value=""
+  document.getElementById("vin").value=""
+  document.getElementById("chassis").value=""
+  document.getElementById("cfr").value=""
+  document.getElementById("remark").value=""
+}
+
+loadList();
+</script>
+</body>
+</html>
