@@ -33,6 +33,8 @@ th,td{border:1px solid #ddd;padding:7px 6px;text-align:left;white-space:nowrap}
 th{background:#f4f4f2}
 .tag-yellow{background:#fff3d4;color:#945600;padding:2px 5px;border:1px solid #e2c074;border-radius:2px;font-size:12px}
 input.cell{width:100%;border:none;background:transparent;outline:none}
+.chart-box{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card-box{border:1px solid #ddd;padding:12px;border-radius:4px}
 </style>
 </head>
 <body>
@@ -44,7 +46,7 @@ input.cell{width:100%;border:none;background:transparent;outline:none}
   <div class="header-actions">
     <button class="btn btn-normal" onclick="pasteImport()">粘贴导入</button>
     <button class="btn btn-orange" onclick="exportCsv()">导出Excel(CSV)</button>
-    <button class="btn btn-normal">自动保存到文件</button>
+    <button class="btn btn-normal" onclick="saveLocal()">自动保存到文件</button>
     <span><span class="status-dot"></span>已自动保存 <span id="saveTime">--</span></span>
   </div>
 </div>
@@ -138,23 +140,52 @@ input.cell{width:100%;border:none;background:transparent;outline:none}
   </div>
 </div>
 
-<div class="panel" id="summary">汇总分析页面</div>
-<div class="panel" id="ship">项目与发运页面</div>
+<div class="panel" id="summary">
+  <div class="chart-box">
+    <div class="card-box">车型汇总统计</div>
+    <div class="card-box">客户提车统计</div>
+    <div class="card-box">库存结构</div>
+    <div class="card-box">异常清单</div>
+  </div>
+</div>
+
+<div class="panel" id="ship">
+  <div class="toolbar">
+    <button class="btn btn-add">新增采购项目</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>项目合同号</th>
+          <th>合同台数</th>
+          <th>发运台数</th>
+          <th>待入库</th>
+          <th>已入库</th>
+          <th>已出库</th>
+          <th>当前库存</th>
+        </tr>
+      </thead>
+      <tbody id="shipTbody"></tbody>
+    </table>
+  </div>
+</div>
+
 <div class="panel" id="param">
   <div class="toolbar">
-    <input placeholder="保险费率（小数，如0.008）" id="p_insRate">
-    <input placeholder="关税率" id="p_customsRate">
-    <input placeholder="增值税率" id="p_vatRate">
+    <input placeholder="保险费率（如0.0008439）" id="p_insRate">
+    <input placeholder="关税率（如0.1477）" id="p_customsRate">
+    <input placeholder="增值税率（如0.0865）" id="p_vatRate">
     <input placeholder="超期天数阈值" id="p_overDay">
+    <input placeholder="默认清关代理费NGN" id="p_clearFee">
     <button class="btn btn-orange" onclick="saveParam()">保存参数</button>
   </div>
 </div>
 
 <script>
-let carList = [];
+let carList = JSON.parse(localStorage.getItem("carList")) || [];
 let checkedSet = new Set();
-let params = {insRate:0, customsRate:0, vatRate:0, overDay:180};
-const api = "";
+let params = JSON.parse(localStorage.getItem("params")) || {insRate:0.0008439, customsRate:0.1477, vatRate:0.0865, overDay:180, clearFee:2550000};
 
 document.querySelectorAll(".tab-item").forEach(t=>{
   t.onclick=()=>{
@@ -165,14 +196,6 @@ document.querySelectorAll(".tab-item").forEach(t=>{
   }
 })
 
-async function loadAll(){
-  const res = await fetch(api+"/api/carlist");
-  carList = await res.json();
-  await loadParam();
-  renderTable();
-  calcStats();
-}
-
 function recalcRow(it){
   const cfrCNY = Number(it.cfrCNY||0);
   const rate = Number(it.rate||0);
@@ -181,11 +204,12 @@ function recalcRow(it){
   it.customs = it.cfrNGN * Number(params.customsRate||0);
   const taxBase = it.cfrNGN + it.insurance + it.customs;
   it.vat = taxBase * Number(params.vatRate||0);
-  it.totalNGN = it.cfrNGN + it.insurance + (Number(it.clearFee||0)) + it.customs + it.vat + (Number(it.kdFee||0));
+  const clearFee = Number(it.clearFee || params.clearFee || 0);
+  it.totalNGN = it.cfrNGN + it.insurance + clearFee + it.customs + it.vat + (Number(it.kdFee||0));
   const sale = Number(it.salePriceNGN||0);
   it.profitNGN = sale - it.totalNGN;
   it.grossRate = sale>0 ? (it.profitNGN / sale) : 0;
-  it.totalCNY = it.totalNGN / rate;
+  it.totalCNY = rate>0 ? it.totalNGN / rate : 0;
 
   if(it.inDate){
     const inD = new Date(it.inDate);
@@ -310,33 +334,34 @@ function delSelected(){
   calcStats();
   autoSave();
 }
-async function autoSave(){
-  await fetch(api+"/api/carlist/save",{
-    method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({list:carList})
-  })
+function autoSave(){
+  localStorage.setItem("carList", JSON.stringify(carList));
   const d = new Date();
   document.getElementById("saveTime").textContent=d.getHours()+":"+String(d.getMinutes()).padStart(2,"0");
 }
+function saveLocal(){
+  const blob = new Blob([JSON.stringify({carList,params},null,2)],{type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href=url;a.download="台账备份.json";a.click();
+}
 
-async function loadParam(){
-  const r = await fetch(api+"/api/params");
-  const p = await r.json();
-  if(!p) return;
-  params = {...params,...p};
+function loadParam(){
   document.getElementById("p_insRate").value=params.insRate;
   document.getElementById("p_customsRate").value=params.customsRate;
   document.getElementById("p_vatRate").value=params.vatRate;
   document.getElementById("p_overDay").value=params.overDay;
+  document.getElementById("p_clearFee").value=params.clearFee;
 }
-async function saveParam(){
-  const d = {
+function saveParam(){
+  params = {
     insRate:Number(document.getElementById("p_insRate").value),
     customsRate:Number(document.getElementById("p_customsRate").value),
     vatRate:Number(document.getElementById("p_vatRate").value),
-    overDay:Number(document.getElementById("p_overDay").value)
+    overDay:Number(document.getElementById("p_overDay").value),
+    clearFee:Number(document.getElementById("p_clearFee").value)
   }
-  params = d;
-  await fetch(api+"/api/params",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)})
+  localStorage.setItem("params", JSON.stringify(params));
   renderTable();
   calcStats();
   alert("参数保存成功");
@@ -346,7 +371,7 @@ function exportCsv(){
   let t = "订单号,合同,客户,车型,VIN,CFR(CNY),汇率,CFR(NGN),海运保险,清关代理费,关税,增值税,KD组装费,总成本NGN,销售单价NGN,毛利NGN,毛利率,总成本CNY,入库日期,出库日期,库存状态,库存天数\n";
   carList.forEach(it=>{
     recalcRow(it);
-    t += `${it.orderNo},${it.contract},${it.cust},${it.model},${it.vin},${it.cfrCNY},${it.rate},${it.cfrNGN.toFixed(2)},${it.insurance.toFixed(2)},${it.clearFee},${it.customs.toFixed(2)},${it.vat.toFixed(2)},${it.kdFee},${it.totalNGN.toFixed(2)},${it.salePriceNGN},${it.profitNGN.toFixed(2)},${(it.grossRate*100).toFixed(2)}%,${it.totalCNY.toFixed(2)},${it.inDate},${it.outDate},${it.stockStatus},${it.stockDay}\n`
+    t += `${it.orderNo},${it.contract},${it.cust},${it.model},${it.vin},${it.cfrCNY},${it.rate},${it.cfrNGN.toFixed(2)},${it.insurance.toFixed(2)},${it.clearFee||params.clearFee},${it.customs.toFixed(2)},${it.vat.toFixed(2)},${it.kdFee},${it.totalNGN.toFixed(2)},${it.salePriceNGN},${it.profitNGN.toFixed(2)},${(it.grossRate*100).toFixed(2)}%,${it.totalCNY.toFixed(2)},${it.inDate},${it.outDate},${it.stockStatus},${it.stockDay}\n`
   })
   const blob = new Blob([t],{type:"text/csv;charset=utf-8"});
   const url = URL.createObjectURL(blob);
@@ -354,7 +379,6 @@ function exportCsv(){
   a.href=url;a.download="子公司车辆台账.csv";a.click();
 }
 
-// ✅ 真正可用的粘贴导入
 async function pasteImport(){
   try{
     const text = await navigator.clipboard.readText();
@@ -364,9 +388,8 @@ async function pasteImport(){
     }
     const lines = text.trim().split(/\r?\n/);
     let addCount = 0;
-    // 按行循环
     for(let i=0;i<lines.length;i++){
-      const cells = lines[i].split("\t"); // Excel复制出来默认制表符分隔
+      const cells = lines[i].split("\t");
       if(cells.length < 5) continue;
       const newRow = {
         orderNo: cells[0]?.trim() || "",
@@ -397,14 +420,17 @@ async function pasteImport(){
     }
     renderTable();
     calcStats();
-    await autoSave();
+    autoSave();
     alert(`导入成功，新增 ${addCount} 条车辆记录！`);
   }catch(err){
     console.error(err);
-    alert("读取剪贴板失败！浏览器权限问题，请用Chrome，并且必须是HTTPS/OnRender域名环境");
+    alert("读取剪贴板失败！请使用Chrome，并且允许剪贴板权限");
   }
 }
-loadAll();
+
+loadParam();
+renderTable();
+calcStats();
 </script>
 </body>
 </html>
