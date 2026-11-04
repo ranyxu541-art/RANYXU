@@ -1,0 +1,100 @@
+const express = require('express')
+const sqlite3 = require('sqlite3').verbose()
+const cors = require('cors')
+const path = require('path')
+const app = express()
+
+app.use(cors())
+app.use(express.json())
+app.use(express.static(path.join(__dirname, 'public')))
+
+const db = new sqlite3.Database('./carbook.db')
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS carlist (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    orderNo TEXT,contractNo TEXT,model TEXT,vin TEXT,chassis TEXT,cfr TEXT,
+    inDate TEXT,outDate TEXT,stockStatus TEXT,rate TEXT,insurance REAL,
+    clearFee REAL,customs REAL,vat REAL,kdFee REAL,totalCost REAL,salePrice TEXT,
+    profit REAL,rateRatio REAL,stockDay INTEGER
+  )`)
+  db.run(`CREATE TABLE IF NOT EXISTS batchrate (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    orderNo TEXT UNIQUE, rateVal REAL
+  )`)
+  db.run(`CREATE TABLE IF NOT EXISTS account (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    accDate TEXT,accType TEXT,money REAL,remark TEXT
+  )`)
+  db.run(`CREATE TABLE IF NOT EXISTS params (
+    id INTEGER PRIMARY KEY,
+    defRate REAL,ngn2cny REAL,insRate REAL,clearFee REAL,
+    vatRate REAL,customsRate REAL,kdFee REAL,overDay INTEGER
+  )`)
+})
+
+//参数
+app.get('/api/params', (req, res) => {
+  db.get(`SELECT * FROM params WHERE id=1`, (err, row) => res.json(row || {}))
+})
+app.post('/api/params', (req, res) => {
+  const d = req.body
+  db.run(`REPLACE INTO params(id,defRate,ngn2cny,insRate,clearFee,vatRate,customsRate,kdFee,overDay)
+VALUES(1,?,?,?,?,?,?,?,?)`,
+    [d.defRate, d.ngn2cny, d.insRate, d.clearFee, d.vatRate, d.customsRate, d.kdFee, d.overDay],
+    err => res.json({ ok: !err }))
+})
+
+//车辆台账
+app.get('/api/carlist', (req, res) => {
+  db.all(`SELECT * FROM carlist`, (e, r) => res.json(r))
+})
+app.post('/api/carlist/save', (req, res) => {
+  const list = req.body.list
+  db.run(`DELETE FROM carlist`, err => {
+    const stmt = db.prepare(`INSERT INTO carlist(
+orderNo,contractNo,model,vin,chassis,cfr,inDate,outDate,stockStatus,
+rate,insurance,clearFee,customs,vat,kdFee,totalCost,salePrice,profit,rateRatio,stockDay
+) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    list.forEach(i => stmt.run(
+      i.orderNo, i.contractNo, i.model, i.vin, i.chassis, i.cfr,
+      i.inDate, i.outDate, i.stockStatus, i.rate, i.insurance,
+      i.clearFee, i.customs, i.vat, i.kdFee, i.totalCost,
+      i.salePrice, i.profit, i.rateRatio, i.stockDay
+    ))
+    stmt.finalize(e => res.json({ ok: !e }))
+  })
+})
+
+//批次汇率
+app.get('/api/batchrate', (req, res) => {
+  db.all(`SELECT orderNo,rateVal FROM batchrate`, (e, rows) => {
+    const map = {}
+    rows.forEach(r => map[r.orderNo] = r.rateVal)
+    res.json(map)
+  })
+})
+app.post('/api/batchrate/save', (req, res) => {
+  const map = req.body.map
+  db.run(`DELETE FROM batchrate`, err => {
+    const st = db.prepare(`INSERT OR REPLACE INTO batchrate(orderNo,rateVal) VALUES(?,?)`)
+    Object.entries(map).forEach(([k, v]) => st.run(k, v))
+    st.finalize(e => res.json({ ok: !e }))
+  })
+})
+
+//记账流水
+app.get('/api/account', (req, res) => {
+  db.all(`SELECT * FROM account ORDER BY accDate DESC`, (e, rows) => res.json(rows))
+})
+app.post('/api/account/save', (req, res) => {
+  const arr = req.body.list
+  db.run(`DELETE FROM account`, err => {
+    const st = db.prepare(`INSERT INTO account(accDate,accType,money,remark) VALUES(?,?,?,?)`)
+    arr.forEach(i => st.run(i.date || i.accDate, i.type || i.accType, i.money, i.remark))
+    st.finalize(e => res.json({ ok: !e }))
+  })
+})
+
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/index.html')))
+const PORT = process.env.PORT || 3000
+app.listen(PORT, () => console.log(`server run ${PORT}`))
