@@ -15,7 +15,7 @@ body{background:#efefef;color:#222;font-size:13px}
 .btn-normal{background:#36505a;color:#fff}
 .btn-orange{background:#d46b16;color:#fff;font-weight:500}
 .status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#48b970;margin-right:4px}
-.stats-row{display:grid;grid-template-columns:repeat(8,1fr);gap:10px;padding:14px 20px;background:#fff;border-bottom:1px solid #ddd}
+.stats-row{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;padding:14px 20px;background:#fff;border-bottom:1px solid #ddd}
 .stat-card{padding:8px}
 .stat-num{font-size:26px;font-weight:bold;color:#193038;margin-bottom:4px}
 .stat-desc{font-size:12px;color:#555;line-height:1.4}
@@ -33,20 +33,18 @@ th,td{border:1px solid #ddd;padding:7px 6px;text-align:left;white-space:nowrap}
 th{background:#f4f4f2}
 .tag-yellow{background:#fff3d4;color:#945600;padding:2px 5px;border:1px solid #e2c074;border-radius:2px;font-size:12px}
 input.cell{width:100%;border:none;background:transparent;outline:none}
-.chart-box{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.card-box{border:1px solid #ddd;padding:12px;border-radius:4px}
 </style>
 </head>
 <body>
 <div class="header-bar">
-  <div>
+  <div class="header-title">
     <h1>子公司车辆成本库存核算台</h1>
     <div class="header-sub">SUBSIDIARY VEHICLE LEDGER · <span id="totalCount">0</span> UNITS</div>
   </div>
   <div class="header-actions">
     <button class="btn btn-normal" onclick="pasteImport()">粘贴导入</button>
     <button class="btn btn-orange" onclick="exportCsv()">导出Excel(CSV)</button>
-    <button class="btn btn-normal" onclick="saveLocal()">自动保存到文件</button>
+    <button class="btn btn-normal" onclick="downloadBackup()">自动保存到文件</button>
     <span><span class="status-dot"></span>已自动保存 <span id="saveTime">--</span></span>
   </div>
 </div>
@@ -69,15 +67,15 @@ input.cell{width:100%;border:none;background:transparent;outline:none}
   </div>
   <div class="stat-card">
     <div class="stat-num" id="statCostAmt">0</div>
-    <div class="stat-desc">已核算成本<br>0台已核算 · 平均0万/台</div>
+    <div class="stat-desc">已核算成本<br>单位：亿NGN</div>
   </div>
   <div class="stat-card">
     <div class="stat-num" id="statStockAmt">0</div>
-    <div class="stat-desc">在库成本占用<br>在库车辆成本合计</div>
+    <div class="stat-desc">在库成本占用<br>单位：亿NGN</div>
   </div>
   <div class="stat-card">
     <div class="stat-num" id="statOver">0</div>
-    <div class="stat-desc">超期库存<br>在库超180天</div>
+    <div class="stat-desc">超期库存<br>在库超阈值天数</div>
   </div>
 </div>
 <div class="tabs-wrap">
@@ -141,34 +139,11 @@ input.cell{width:100%;border:none;background:transparent;outline:none}
 </div>
 
 <div class="panel" id="summary">
-  <div class="chart-box">
-    <div class="card-box">车型汇总统计</div>
-    <div class="card-box">客户提车统计</div>
-    <div class="card-box">库存结构</div>
-    <div class="card-box">异常清单</div>
-  </div>
+  <div style="padding:10px;">汇总分析模块（后续扩展车型/客户统计图表）</div>
 </div>
 
 <div class="panel" id="ship">
-  <div class="toolbar">
-    <button class="btn btn-add">新增采购项目</button>
-  </div>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>项目合同号</th>
-          <th>合同台数</th>
-          <th>发运台数</th>
-          <th>待入库</th>
-          <th>已入库</th>
-          <th>已出库</th>
-          <th>当前库存</th>
-        </tr>
-      </thead>
-      <tbody id="shipTbody"></tbody>
-    </table>
-  </div>
+  <div style="padding:10px;">项目与发运模块（后续扩展项目台账）</div>
 </div>
 
 <div class="panel" id="param">
@@ -179,13 +154,21 @@ input.cell{width:100%;border:none;background:transparent;outline:none}
     <input placeholder="超期天数阈值" id="p_overDay">
     <input placeholder="默认清关代理费NGN" id="p_clearFee">
     <button class="btn btn-orange" onclick="saveParam()">保存参数</button>
+    <button class="btn btn-normal" onclick="uploadBackup()">导入备份json</button>
   </div>
+  <input type="file" id="fileInput" style="display:none" accept=".json">
 </div>
 
 <script>
 let carList = JSON.parse(localStorage.getItem("carList")) || [];
 let checkedSet = new Set();
-let params = JSON.parse(localStorage.getItem("params")) || {insRate:0.0008439, customsRate:0.1477, vatRate:0.0865, overDay:180, clearFee:2550000};
+let params = JSON.parse(localStorage.getItem("params")) || {
+  insRate:0.0008439,
+  customsRate:0.1477,
+  vatRate:0.0865,
+  overDay:180,
+  clearFee:2550000
+};
 
 document.querySelectorAll(".tab-item").forEach(t=>{
   t.onclick=()=>{
@@ -336,14 +319,32 @@ function delSelected(){
 }
 function autoSave(){
   localStorage.setItem("carList", JSON.stringify(carList));
+  localStorage.setItem("params", JSON.stringify(params));
   const d = new Date();
   document.getElementById("saveTime").textContent=d.getHours()+":"+String(d.getMinutes()).padStart(2,"0");
 }
-function saveLocal(){
+function downloadBackup(){
   const blob = new Blob([JSON.stringify({carList,params},null,2)],{type:"application/json"});
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href=url;a.download="台账备份.json";a.click();
+}
+function uploadBackup(){
+  document.getElementById("fileInput").click();
+}
+document.getElementById("fileInput").onchange = function(e){
+  const fr = new FileReader();
+  fr.onload = function(ev){
+    const dat = JSON.parse(ev.target.result);
+    carList = dat.carList;
+    params = dat.params;
+    autoSave();
+    loadParam();
+    renderTable();
+    calcStats();
+    alert("备份导入成功！");
+  }
+  fr.readAsText(e.target.files[0]);
 }
 
 function loadParam(){
@@ -361,7 +362,7 @@ function saveParam(){
     overDay:Number(document.getElementById("p_overDay").value),
     clearFee:Number(document.getElementById("p_clearFee").value)
   }
-  localStorage.setItem("params", JSON.stringify(params));
+  autoSave();
   renderTable();
   calcStats();
   alert("参数保存成功");
@@ -424,7 +425,7 @@ async function pasteImport(){
     alert(`导入成功，新增 ${addCount} 条车辆记录！`);
   }catch(err){
     console.error(err);
-    alert("读取剪贴板失败！请使用Chrome，并且允许剪贴板权限");
+    alert("读取剪贴板失败！使用Chrome浏览器，并且允许剪贴板权限，网站必须是HTTPS");
   }
 }
 
