@@ -142,7 +142,7 @@ input.cell{width:100%;border:none;background:transparent;outline:none}
 <div class="panel" id="ship">项目与发运页面</div>
 <div class="panel" id="param">
   <div class="toolbar">
-    <input placeholder="保险费率" id="p_insRate">
+    <input placeholder="保险费率（小数，如0.008）" id="p_insRate">
     <input placeholder="关税率" id="p_customsRate">
     <input placeholder="增值税率" id="p_vatRate">
     <input placeholder="超期天数阈值" id="p_overDay">
@@ -353,22 +353,56 @@ function exportCsv(){
   const a = document.createElement("a");
   a.href=url;a.download="子公司车辆台账.csv";a.click();
 }
+
+// ✅ 真正可用的粘贴导入
 async function pasteImport(){
-  const text = await navigator.clipboard.readText();
-  const lines = text.trim().split("\n");
-  for(let i=1;i<lines.length;i++){
-    const col = lines[i].split(/\t|,/);
-    carList.push({
-      orderNo:col[0]||"",contract:col[1]||"",cust:col[2]||"",model:col[3]||"",vin:col[4]||"",
-      cfrCNY:col[5]||"",rate:col[6]||"",cfrNGN:0,insurance:0,clearFee:col[9]||"",
-      customs:0,vat:0,kdFee:col[13]||"",totalNGN:0,salePriceNGN:col[15]||"",
-      profitNGN:0,grossRate:0,totalCNY:0,inDate:col[19]||"",outDate:col[20]||"",stockStatus:"",stockDay:0
-    })
+  try{
+    const text = await navigator.clipboard.readText();
+    if(!text.trim()){
+      alert("剪贴板是空的！先在Excel选中区域复制");
+      return;
+    }
+    const lines = text.trim().split(/\r?\n/);
+    let addCount = 0;
+    // 按行循环
+    for(let i=0;i<lines.length;i++){
+      const cells = lines[i].split("\t"); // Excel复制出来默认制表符分隔
+      if(cells.length < 5) continue;
+      const newRow = {
+        orderNo: cells[0]?.trim() || "",
+        contract: cells[1]?.trim() || "",
+        cust: cells[2]?.trim() || "",
+        model: cells[3]?.trim() || "",
+        vin: cells[4]?.trim() || "",
+        cfrCNY: cells[5]?.trim() || "",
+        rate: cells[6]?.trim() || "",
+        cfrNGN:0,
+        insurance:0,
+        clearFee: cells[9]?.trim() || "",
+        customs:0,
+        vat:0,
+        kdFee: cells[13]?.trim() || "",
+        totalNGN:0,
+        salePriceNGN: cells[15]?.trim() || "",
+        profitNGN:0,
+        grossRate:0,
+        totalCNY:0,
+        inDate: cells[19]?.trim() || "",
+        outDate: cells[20]?.trim() || "",
+        stockStatus:"",
+        stockDay:0
+      };
+      carList.push(newRow);
+      addCount++;
+    }
+    renderTable();
+    calcStats();
+    await autoSave();
+    alert(`导入成功，新增 ${addCount} 条车辆记录！`);
+  }catch(err){
+    console.error(err);
+    alert("读取剪贴板失败！浏览器权限问题，请用Chrome，并且必须是HTTPS/OnRender域名环境");
   }
-  renderTable();
-  calcStats();
-  autoSave();
-  alert("粘贴导入完成");
 }
 loadAll();
 </script>
